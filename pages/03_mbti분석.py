@@ -1,20 +1,19 @@
-import pandas as pd
+```python
 import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
+import pandas as pd
+import altair as alt
 
-# 페이지 설정
 st.set_page_config(
-    page_title="Countries MBTI Analysis",
+    page_title="국가별 MBTI 분석",
     layout="centered"
 )
 
-st.title("🌍 국가별 MBTI 비율 분석")
+st.title("🌍 국가별 MBTI 분석")
 
-# CSV 불러오기
+# CSV 읽기
 df = pd.read_csv("countriesMBTI_16types.csv")
 
-# 국가 컬럼 찾기
+# 국가 컬럼
 country_col = df.columns[0]
 
 # MBTI 컬럼
@@ -27,63 +26,62 @@ country = st.selectbox(
 )
 
 # 선택 국가 데이터
-selected_row = df[df[country_col] == country].iloc[0]
+row = df[df[country_col] == country].iloc[0]
 
-# MBTI 비율
-values = selected_row[mbti_cols].astype(float)
+# 데이터프레임 생성
+mbti_df = pd.DataFrame({
+    "MBTI": mbti_cols,
+    "Value": row[mbti_cols].astype(float).values
+})
 
-# 내림차순 정렬
-values = values.sort_values(ascending=False)
+# 정렬
+mbti_df = mbti_df.sort_values(
+    by="Value",
+    ascending=False
+).reset_index(drop=True)
+
+# 퍼센트 변환
+mbti_df["Percent"] = mbti_df["Value"] * 100
 
 # 색상 설정
 colors = []
 
-# 1등 색상
-top_color = "#FFD700"  # 노란색
-
-# 하늘색 그라데이션
-base_color = np.array([135, 206, 235]) / 255  # skyblue
-white = np.array([1, 1, 1])
-
-for i in range(len(values)):
+for i in range(len(mbti_df)):
     if i == 0:
-        colors.append(top_color)
+        colors.append("#FFD700")  # 1등 노란색
     else:
-        ratio = i / (len(values) - 1)
-        blended = base_color * (1 - ratio) + white * ratio
-        colors.append(blended)
+        opacity = 1 - (i / len(mbti_df)) * 0.7
+        colors.append(f"rgba(135,206,235,{opacity})")
+
+mbti_df["Color"] = colors
 
 # 그래프 생성
-fig, ax = plt.subplots(figsize=(12, 6))
-
-bars = ax.bar(values.index, values.values * 100, color=colors)
-
-# 값 표시
-for bar in bars:
-    height = bar.get_height()
-    ax.text(
-        bar.get_x() + bar.get_width() / 2,
-        height + 0.2,
-        f"{height:.1f}%",
-        ha='center',
-        fontsize=9
-    )
-
-# 그래프 스타일
-ax.set_title(f"{country} MBTI Distribution", fontsize=18, pad=20)
-ax.set_ylabel("Percentage (%)")
-ax.set_ylim(0, max(values.values * 100) + 5)
-
-plt.xticks(rotation=45)
-
-# 상단/우측 테두리 제거
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-st.pyplot(fig)
-
-# 최고 MBTI 출력
-st.success(
-    f"🏆 {country}에서 가장 높은 MBTI는 "
-    f"'{values.index[0]}' ({values.iloc[0] * 100:.1f}%) 입니다."
+chart = alt.Chart(mbti_df).mark_bar().encode(
+    x=alt.X("MBTI:N", sort=None),
+    y=alt.Y("Percent:Q", title="Percentage (%)"),
+    color=alt.Color(
+        "Color:N",
+        scale=None,
+        legend=None
+    ),
+    tooltip=[
+        alt.Tooltip("MBTI:N"),
+        alt.Tooltip("Percent:Q", format=".1f")
+    ]
+).properties(
+    width=700,
+    height=450,
+    title=f"{country} MBTI Distribution"
 )
+
+st.altair_chart(chart, use_container_width=True)
+
+# 최고 MBTI
+top = mbti_df.iloc[0]
+
+st.success(
+    f"🏆 가장 높은 MBTI는 "
+    f"{top['MBTI']} ({top['Percent']:.1f}%) 입니다."
+)
+```
+
