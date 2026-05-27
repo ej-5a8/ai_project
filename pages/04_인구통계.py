@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
 import platform
 
 # -----------------------------
@@ -19,15 +18,15 @@ plt.rcParams['axes.unicode_minus'] = False
 # -----------------------------
 # 데이터 불러오기
 # -----------------------------
-df = pd.read_csv("popuiation.csv", encoding='utf-8')
+df = pd.read_csv("popuiation.csv", encoding='cp949')
 
-# 행정구역 컬럼 이름 찾기
+# 행정구역 컬럼
 region_col = df.columns[0]
 
-# 숫자형 컬럼만 추출
+# 연령 컬럼
 age_columns = df.columns[3:]
 
-# 행정구역 목록
+# 지역 목록
 regions = df[region_col].tolist()
 
 # -----------------------------
@@ -42,7 +41,7 @@ selected_region = st.selectbox(
     regions
 )
 
-# 선택된 지역 데이터
+# 선택된 데이터
 region_data = df[df[region_col] == selected_region].iloc[0]
 
 # 나이 / 인구수 추출
@@ -72,18 +71,14 @@ ax.plot(
     linewidth=3
 )
 
-# 제목
 ax.set_title(f"{selected_region} 연령별 인구수", fontsize=18)
+ax.set_xlabel("나이")
+ax.set_ylabel("인구수")
 
-# 축 이름
-ax.set_xlabel("나이", fontsize=13)
-ax.set_ylabel("인구수", fontsize=13)
-
-# x축 10살 단위 구분선
+# 10살 단위 구분선
 ax.set_xticks(range(0, 101, 10))
 ax.grid(axis='x', linestyle='--', alpha=0.5)
 
-# 보기 좋게
 ax.set_xlim(0, 100)
 
 st.pyplot(fig)
