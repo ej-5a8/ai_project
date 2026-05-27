@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import platform
+import koreanize_matplotlib
 
 # -----------------------------
-# 한글 폰트 설정
+# 한글 폰트
 # -----------------------------
 if platform.system() == 'Windows':
     plt.rc('font', family='Malgun Gothic')
@@ -16,24 +17,19 @@ else:
 plt.rcParams['axes.unicode_minus'] = False
 
 # -----------------------------
-# 데이터 불러오기
+# CSV 불러오기
 # -----------------------------
 df = pd.read_csv("popuiation.csv", encoding='cp949')
 
-# 행정구역 컬럼
+# 첫 번째 컬럼 = 행정구역
 region_col = df.columns[0]
-
-# 연령 컬럼
-age_columns = df.columns[3:]
 
 # 지역 목록
 regions = df[region_col].tolist()
 
 # -----------------------------
-# Streamlit UI
+# UI
 # -----------------------------
-st.set_page_config(page_title="서울 인구 분석", layout="wide")
-
 st.title("📊 서울 연령별 인구 분석")
 
 selected_region = st.selectbox(
@@ -41,23 +37,34 @@ selected_region = st.selectbox(
     regions
 )
 
-# 선택된 데이터
+# 선택된 지역
 region_data = df[df[region_col] == selected_region].iloc[0]
 
-# 나이 / 인구수 추출
+# -----------------------------
+# 연령 데이터 추출
+# -----------------------------
 ages = []
 population = []
 
-for col in age_columns:
-    try:
-        age = int(col.replace('세', '').replace(' 이상', '').strip())
-        ages.append(age)
+for col in df.columns:
 
-        value = str(region_data[col]).replace(',', '')
-        population.append(int(value))
+    # "세"가 들어간 컬럼만 사용
+    if "세" in col:
 
-    except:
-        continue
+        try:
+            # 나이 추출
+            age_text = col.split("세")[0]
+            age = int(age_text.replace(" ", "").replace("이상", ""))
+
+            # 인구수
+            value = str(region_data[col]).replace(",", "")
+            value = int(value)
+
+            ages.append(age)
+            population.append(value)
+
+        except:
+            pass
 
 # -----------------------------
 # 그래프
@@ -67,11 +74,14 @@ fig, ax = plt.subplots(figsize=(14, 6))
 ax.plot(
     ages,
     population,
-    color='hotpink',
+    color="hotpink",
     linewidth=3
 )
 
+# 제목
 ax.set_title(f"{selected_region} 연령별 인구수", fontsize=18)
+
+# 축
 ax.set_xlabel("나이")
 ax.set_ylabel("인구수")
 
@@ -79,6 +89,8 @@ ax.set_ylabel("인구수")
 ax.set_xticks(range(0, 101, 10))
 ax.grid(axis='x', linestyle='--', alpha=0.5)
 
+# 범위
 ax.set_xlim(0, 100)
 
+# 출력
 st.pyplot(fig)
