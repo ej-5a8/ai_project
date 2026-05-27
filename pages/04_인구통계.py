@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import platform
-import koreanize_matplotlib
 import re
 
 # -----------------------------
@@ -13,7 +13,7 @@ if platform.system() == 'Windows':
 elif platform.system() == 'Darwin':
     plt.rc('font', family='AppleGothic')
 else:
-    plt.rc('font', family='NanumGothic')
+    plt.rc('font', family='DejaVu Sans')
 
 plt.rcParams['axes.unicode_minus'] = False
 
@@ -31,6 +31,11 @@ regions = df[region_col].tolist()
 # -----------------------------
 # Streamlit UI
 # -----------------------------
+st.set_page_config(
+    page_title="서울 연령별 인구 분석",
+    layout="wide"
+)
+
 st.title("📊 서울 연령별 인구 분석")
 
 selected_region = st.selectbox(
@@ -38,7 +43,7 @@ selected_region = st.selectbox(
     regions
 )
 
-# 선택된 지역 데이터
+# 선택 지역 데이터
 region_data = df[df[region_col] == selected_region].iloc[0]
 
 # -----------------------------
@@ -49,23 +54,24 @@ population = []
 
 for col in df.columns:
 
-    # 0세 ~ 99세 컬럼만 추출
+    # 0세 ~ 99세
     match = re.search(r'_(\d+)세$', col)
 
-    # 100세 이상 처리
-    if "100세 이상" in col:
-        ages.append(100)
-
-        value = str(region_data[col]).replace(",", "")
-        population.append(int(value))
-
-    elif match:
+    if match:
         age = int(match.group(1))
 
         value = str(region_data[col]).replace(",", "")
         value = int(value)
 
         ages.append(age)
+        population.append(value)
+
+    # 100세 이상
+    elif "100세 이상" in col:
+        value = str(region_data[col]).replace(",", "")
+        value = int(value)
+
+        ages.append(100)
         population.append(value)
 
 # -----------------------------
