@@ -1,128 +1,135 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
 st.set_page_config(
-    page_title="식품 영양성분 분석",
+    page_title="식품군별 칼로리 분석",
     page_icon="🍔",
     layout="wide"
 )
 
-st.title("🍔 전국 통합 식품 영양성분 분석")
+st.title("🍔 식품군별 칼로리 분석 시스템")
 
-uploaded_file = st.file_uploader(
-    "CSV 파일을 업로드하세요",
-    type=["csv"]
+# 데이터 읽기
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_csv(
+            "전국통합식품영양성분정보_음식_표준데이터.csv",
+            encoding="utf-8"
+        )
+    except:
+        df = pd.read_csv(
+            "전국통합식품영양성분정보_음식_표준데이터.csv",
+            encoding="cp949"
+        )
+
+    return df
+
+df = load_data()
+
+# 컬럼 자동 탐색
+food_group_col = None
+food_name_col = None
+calorie_col = None
+
+for col in df.columns:
+
+    if "식품대분류" in col:
+        food_group_col = col
+
+    if "식품명" in col:
+        food_name_col = col
+
+    if (
+        "에너지" in col
+        or "열량" in col
+        or "칼로리" in col
+    ):
+        calorie_col = col
+
+if not all([food_group_col, food_name_col, calorie_col]):
+    st.error("필수 컬럼을 찾을 수 없습니다.")
+    st.stop()
+
+df[calorie_col] = pd.to_numeric(
+    df[calorie_col],
+    errors="coerce"
 )
 
-if uploaded_file is not None:
+df = df.dropna(subset=[calorie_col])
 
-    try:
-        df = pd.read_csv(uploaded_file, encoding="cp949")
-    except:
-        df = pd.read_csv(uploaded_file, encoding="utf-8")
+# 식품군 선택
+food_groups = sorted(
+    df[food_group_col].dropna().unique()
+)
 
-    st.success("데이터 로드 완료!")
+selected_group = st.selectbox(
+    "식품군 선택",
+    food_groups
+)
 
-    st.subheader("데이터 미리보기")
-    st.dataframe(df.head())
+filtered = df[
+    df[food_group_col] == selected_group
+]
 
-    # 컬럼 자동 탐색
-    food_group_col = None
-    food_name_col = None
-    calorie_col = None
+st.markdown("---")
 
-    for col in df.columns:
-        if "식품대분류" in col:
-            food_group_col = col
+col1, col2, col3 = st.columns(3)
 
-        if "식품명" in col:
-            food_name_col = col
+col1.metric(
+    "음식 수",
+    len(filtered)
+)
 
-        if "에너지" in col or "열량" in col or "칼로리" in col:
-            calorie_col = col
+col2.metric(
+    "평균 칼로리",
+    round(filtered[calorie_col].mean(), 1)
+)
 
-    if food_group_col and food_name_col and calorie_col:
+col3.metric(
+    "최고 칼로리",
+    round(filtered[calorie_col].max(), 1)
+)
 
-        groups = sorted(df[food_group_col].dropna().unique())
+# TOP10
+st.subheader("🔥 칼로리 TOP 10")
 
-        selected_group = st.selectbox(
-            "식품군 선택",
-            groups
-        )
+top10 = (
+    filtered
+    .sort_values(
+        calorie_col,
+        ascending=False
+    )
+    [[food_name_col, calorie_col]]
+    .head(10)
+)
 
-        filtered = df[df[food_group_col] == selected_group].copy()
+st.dataframe(
+    top10,
+    use_container_width=True
+)
 
-        filtered[calorie_col] = pd.to_numeric(
-            filtered[calorie_col],
-            errors="coerce"
-        )
+# LOW10
+st.subheader("🥗 칼로리 LOW 10")
 
-        filtered = filtered.dropna(subset=[calorie_col])
+low10 = (
+    filtered
+    .sort_values(
+        calorie_col,
+        ascending=True
+    )
+    [[food_name_col, calorie_col]]
+    .head(10)
+)
 
-        st.markdown("---")
+st.dataframe(
+    low10,
+    use_container_width=True
+)
 
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "음식 수",
-            len(filtered)
-        )
-
-        col2.metric(
-            "평균 칼로리",
-            round(filtered[calorie_col].mean(), 1)
-        )
-
-        col3.metric(
-            "최고 칼로리",
-            round(filtered[calorie_col].max(), 1)
-        )
-
-        st.markdown("## 🔥 칼로리 TOP 10")
-
-        top10 = (
-            filtered
-            .sort_values(calorie_col, ascending=False)
-            [[food_name_col, calorie_col]]
-            .head(10)
-        )
-
-        st.dataframe(top10, use_container_width=True)
-
-        fig_top = px.bar(
-            top10,
-            x=food_name_col,
-            y=calorie_col,
-            title="칼로리 TOP10"
-        )
-
-        st.plotly_chart(fig_top, use_container_width=True)
-
-        st.markdown("## 🥗 칼로리 LOW 10")
-
-        low10 = (
-            filtered
-            .sort_values(calorie_col, ascending=True)
-            [[food_name_col, calorie_col]]
-            .head(10)
-        )
-
-        st.dataframe(low10, use_container_width=True)
-
-        fig_low = px.bar(
-            low10,
-            x=food_name_col,
-            y=calorie_col,
-            title="칼로리 LOW10"
-        )
-
-        st.plotly_chart(fig_low, use_container_width=True)
-
-    else:
-        st.error(
-            "식품군, 식품명, 칼로리 컬럼을 찾을 수 없습니다."
-        )
-
-else:
-    st.info("CSV 파일을 업로드해주세요.")
+# 전체 데이터
+with st.expander("전체 데이터 보기"):
+    st.dataframe(
+        filtered,
+        use_container_width=True
+    )
